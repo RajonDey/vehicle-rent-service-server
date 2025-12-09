@@ -1,7 +1,8 @@
+// src/middleware/auth.ts
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-// Extend Express Request type
+// Extend Express Request type to include user
 declare global {
   namespace Express {
     interface Request {
@@ -14,46 +15,44 @@ declare global {
   }
 }
 
-export const athenticate = ( req: Request, res: Response, next: NextFunction) => {
-    try {
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return res.status(401).json({
-          success: false,
-          message: "Authentication token required",
-        });
-      }
-      const token = authHeader.split(" ")[1];
+export const authenticate = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const authHeader = req.headers.authorization;
 
-      if (!token) {
-        return res.status(401).json({
-          success: false,
-          message: "Invalid token format",
-        });
-      }
-
-      // Verify token
-      const decoded = jwt.verify(
-        token,
-        process.env.JWT_SECRET || "your-jwt-secret-key"
-      ) as unknown as { id: number; email: string; role: string };
-
-      // Add user info to request
-      req.user = {
-        id: decoded.id,
-        email: decoded.email,
-        role: decoded.role,
-      };
-
-      next();
-    } catch (error) {
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
       return res.status(401).json({
         success: false,
-        message: "Invalid or expired token",
+        message: "Authentication token required",
       });
     }
 
-}
+    const token = authHeader.split(" ")[1];
+
+    // Verify JWT token
+    const decoded = jwt.verify(
+      token as string,
+      process.env.JWT_SECRET || "your-jwt-secret-key"
+    ) as unknown as { id: number; email: string; role: string };
+
+    // Add user info to request object
+    req.user = {
+      id: decoded.id,
+      email: decoded.email,
+      role: decoded.role,
+    };
+
+    next();
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired token",
+    });
+  }
+};
 
 export const authorize = (...allowedRoles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
@@ -74,4 +73,3 @@ export const authorize = (...allowedRoles: string[]) => {
     next();
   };
 };
-

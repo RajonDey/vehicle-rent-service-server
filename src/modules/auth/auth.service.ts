@@ -1,6 +1,9 @@
-import pool from '../../config/db';
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
+// Update src/modules/auth/auth.service.ts
+import { UserService } from "../users/user.service";
+import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
+
+const userService = new UserService(); // Use the shared service
 
 export class AuthService {
   async signup(userData: {
@@ -9,7 +12,7 @@ export class AuthService {
     password: string;
     phone: string;
     role?: string;
-  }){
+  }) {
     // Validate required fields
     if (
       !userData.name ||
@@ -31,24 +34,20 @@ export class AuthService {
     }
 
     // Check if user already exists
-    const existingUser = await pool.query(
-      "SELECT id FROM users WHERE email = $1",
-      [userData.email.toLowerCase()]
-    );
-
-    if (existingUser.rows.length > 0) {
+    const existingUser = await userService.getUserByEmail(userData.email);
+    if (existingUser) {
       throw new Error("Email already exists");
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(userData.password, 10);
 
-    // Create User
-    // Create user
+    // Create user using pool directly (since userService doesn't have createUser)
+    const pool = require("../../config/db").default;
     const result = await pool.query(
       `INSERT INTO users (name, email, password, phone, role)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, name, email, phone, role, created_at`,
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING id, name, email, phone, role, created_at`,
       [
         userData.name,
         userData.email.toLowerCase(),
@@ -84,29 +83,23 @@ export class AuthService {
   }
 
   async signin(email: string, password: string) {
-
     // Validate input
     if (!email || !password) {
       throw new Error("Email and password are required");
     }
-    
-    // Find user by email
-    const result = await pool.query(
-      "SELECT id, name, email, password, phone, role FROM users WHERE email = $1",
-      [email.toLowerCase()]
-    );
-    
-    const user = result.rows[0];
-    
+
+    // Find user
+    const user = await userService.getUserByEmail(email);
+
     if (!user) {
-      throw new Error('Invalid credentials');
-    }  
+      throw new Error("Invalid credentials");
+    }
 
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password);
-    
+
     if (!isValidPassword) {
-      throw new Error('Invalid credentials');
+      throw new Error("Invalid credentials");
     }
 
     // Generate JWT token
@@ -114,10 +107,10 @@ export class AuthService {
       {
         id: user.id,
         email: user.email,
-        role: user.role
+        role: user.role,
       },
-      process.env.JWT_SECRET || 'your-jwt-secret-key',
-      { expiresIn: '7d' }
+      process.env.JWT_SECRET || "your-jwt-secret-key",
+      { expiresIn: "7d" }
     );
 
     return {
@@ -126,9 +119,9 @@ export class AuthService {
         name: user.name,
         email: user.email,
         phone: user.phone,
-        role: user.role
+        role: user.role,
       },
-      token
+      token,
     };
   }
 }
