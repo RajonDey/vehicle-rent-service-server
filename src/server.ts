@@ -2,8 +2,8 @@ import express from "express";
 import dotenv from "dotenv";
 
 // Import routes
-import authRoutes from './modules/auth/auth.route';
-import vehicleRoutes from './modules/vehicles/vehicle.routes';
+import authRoutes from "./modules/auth/auth.route";
+import vehicleRoutes from "./modules/vehicles/vehicle.routes";
 import userRoutes from "./modules/users/user.routes";
 import bookingRoutes from "./modules/bookings/booking.routes";
 
@@ -22,8 +22,8 @@ app.use("/api/v1/users", userRoutes);
 app.use("/api/v1/bookings", bookingRoutes);
 
 // Test route
-app.get('/', (req, res) => {
-    res.send('Vehicle Rental System API is running...');
+app.get("/", (req, res) => {
+  res.send("Vehicle Rental System API is running...");
 });
 
 // 404 handler - catch all unmatched routes
@@ -34,12 +34,12 @@ app.use((req, res) => {
   });
 });
 
-// app.listen(port, () => {
-//   console.log(`Server running on http://localhost:${port}`);
-// });
-
+// Start server only if not on Vercel
 if (process.env.VERCEL !== "1") {
   app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
   });
 }
+
+// Export the app for Vercel serverless functions
+export default app;
